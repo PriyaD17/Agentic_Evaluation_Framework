@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import json
 import csv
 
-# --- SETUP AND CONFIGURATION ---
 load_dotenv()
 
 try:
@@ -14,11 +13,9 @@ except KeyError:
     print("Please make sure you have a .env file with your API key.")
     exit()
 
-# Configure the AI model to be used as the judge
 ai_judge_model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 
-# --- EVALUATION FUNCTIONS ---
 
 def evaluate_instruction_following(prompt, response):
     """
@@ -86,7 +83,6 @@ def run_and_print_evaluation(agent_name, prompt, response):
     return instruction_score, helpfulness_eval
 
 
-# --- MAIN EXECUTION ---
 
 def main():
     """
@@ -104,12 +100,12 @@ def main():
                 if agent not in agent_scores:
                     agent_scores[agent] = {"Helpful": 0, "Unhelpful": 0, "Fail": 0, "Total": 0, "Errors": 0}
 
-                # Run evaluation and get scores for the current row
+            
                 instruction_score, helpfulness_eval = run_and_print_evaluation(
                     row["agent"], row["prompt"], row["response"]
                 )
 
-                # Update leaderboard scores
+                # leaderboard scores
                 agent_scores[agent]["Total"] += 1
                 if instruction_score == "FAIL":
                     agent_scores[agent]["Fail"] += 1
@@ -122,9 +118,9 @@ def main():
                 elif score == "AI Judge Error":
                     agent_scores[agent]["Errors"] += 1
 
-        # --- PRINT THE FINAL LEADERBOARD ---
+
         print("\n===================================")
-        print("    HACKATHON LEADERBOARD")
+        print(" AI AGENTS LEADERBOARD")
         print("===================================\n")
 
         sorted_agents = sorted(agent_scores.items(), key=lambda item: item[1]['Helpful'], reverse=True)
