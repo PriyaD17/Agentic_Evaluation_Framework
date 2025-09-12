@@ -12,19 +12,20 @@ except KeyError:
     exit()
 
 # AI model 
-ai_judge_model = genai.GenerativeModel('gemini-2.5-pro')
+ai_judge_model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 
 def evaluate_instruction_following(prompt, response):
     """
-    A simple rule-based check for instruction following.
-    This example checks if the response is a single sentence.
+    A more precise rule-based check for instruction following.
     """
-    # simple heuristic: a single sentence should have one period.
-    if "single sentence" in prompt.lower() and response.count('.') == 1:
-        return "PASS"
-    # placeholder for more complex rules- we default to PASS for now.
-    return "PASS (Rule not applicable)"
+    if "single sentence" in prompt.lower():
+        # A better heuristic: a single sentence has one period and ends with it.
+        if response.strip().count('.') == 1 and response.strip().endswith('.'):
+            return "PASS"
+        else:
+            return "FAIL" 
+    return "Not Applicable"
 
 def evaluate_accuracy_with_ai(prompt, response):
     """
