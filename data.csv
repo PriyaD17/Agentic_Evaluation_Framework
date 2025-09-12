@@ -1,0 +1,7 @@
+agent,prompt,response
+HelpfulBot,"What is the boiling point of water in Celsius?","The boiling point of water is 100 degrees Celsius."
+CreativeBot,"Explain gravity in a single sentence.","Gravity is the invisible force that keeps everything from floating away. It's what makes apples fall from trees and keeps us on the ground. It is a fundamental interaction of nature."
+WrongBot,"What is the capital of Australia?","The capital of Australia is Sydney."
+SummarizeBot,"Summarize this text: The sun is a star. It is very big. Planets orbit the sun.","The provided text states that the sun is a large star orbited by planets."
+HelpfulBot,"What is 2+2?","The sum of 2 and 2 is 4."
+WrongBot,"What is 2+2?","The sum of 2 and 2 is 5."

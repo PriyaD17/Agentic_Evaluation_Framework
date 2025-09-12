@@ -2,34 +2,38 @@ import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 import json
+import csv
+
+# --- SETUP AND CONFIGURATION ---
 load_dotenv()
 
 try:
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 except KeyError:
     print("Error: GEMINI_API_KEY environment variable not set.")
-    print("Please set it to your Google AI API key.")
+    print("Please make sure you have a .env file with your API key.")
     exit()
 
-# AI model 
+# Configure the AI model to be used as the judge
 ai_judge_model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 
+# --- EVALUATION FUNCTIONS ---
+
 def evaluate_instruction_following(prompt, response):
     """
-    A more precise rule-based check for instruction following.
+    A precise, rule-based check for a "single sentence" instruction.
     """
     if "single sentence" in prompt.lower():
-        # A better heuristic: a single sentence has one period and ends with it.
         if response.strip().count('.') == 1 and response.strip().endswith('.'):
             return "PASS"
         else:
-            return "FAIL" 
+            return "FAIL"
     return "Not Applicable"
 
 def evaluate_helpfulness_with_ai(prompt, response):
     """
-    Evaluates helpfulness and provides a justification for the score.
+    Evaluates helpfulness and provides a justification for the score using the AI Judge.
     This targets the "Explainability" stretch goal.
     """
     judge_prompt = f"""
@@ -51,7 +55,7 @@ def evaluate_helpfulness_with_ai(prompt, response):
     try:
         generation_config = genai.types.GenerationConfig(
             temperature=0.0,
-            response_mime_type="application/json" # This forces the model to output JSON!
+            response_mime_type="application/json"  # Force the model to output JSON
         )
         judge_response = ai_judge_model.generate_content(
             judge_prompt,
@@ -59,45 +63,86 @@ def evaluate_helpfulness_with_ai(prompt, response):
         )
         return json.loads(judge_response.text)
     except Exception as e:
-        # If something goes wrong, return a structured error
         return {"score": "AI Judge Error", "justification": str(e)}
 
-def run_evaluation(agent_name, prompt, response):
-    """ Runs all evaluations and prints the score with justification. """
+def run_and_print_evaluation(agent_name, prompt, response):
+    """
+    Runs all evaluations, prints a detailed report for one item,
+    and returns the scores for aggregation.
+    """
+    instruction_score = evaluate_instruction_following(prompt, response)
+    helpfulness_eval = evaluate_helpfulness_with_ai(prompt, response)
+
     print("--- Evaluation Report ---")
     print(f"Agent: '{agent_name}'")
     print(f"Prompt: '{prompt}'")
     print(f"Response: '{response}'\n")
-
-    instruction_score = evaluate_instruction_following(prompt, response)
-    helpfulness_eval = evaluate_helpfulness_with_ai(prompt, response) 
-
     print("Scores:")
     print(f"- Instruction Following: {instruction_score}")
-    print(f"- Helpfulness: {helpfulness_eval['score']}")
-    print(f"  └─ Justification: {helpfulness_eval['justification']}") 
+    print(f"- Helpfulness: {helpfulness_eval.get('score', 'N/A')}")
+    print(f"  └─ Justification: {helpfulness_eval.get('justification', 'N/A')}")
     print("-------------------------\n")
 
-#  Example evaluation data
-
-eval_data = [
-    {
-        "agent": "HelpfulBot",
-        "prompt": "What is the boiling point of water in Celsius?",
-        "response": "The boiling point of water is 100 degrees Celsius."
-    },
-    {
-        "agent": "CreativeBot",
-        "prompt": "Explain gravity in a single sentence.",
-        "response": "Gravity is the invisible force that keeps everything from floating away. It's what makes apples fall from trees and keeps us on the ground. It is a fundamental interaction of nature."
-    },
-    {
-        "agent": "WrongBot",
-        "prompt": "What is the capital of Australia?",
-        "response": "The capital of Australia is Sydney."
-    }
-]
+    return instruction_score, helpfulness_eval
 
 
-for item in eval_data:
-    run_evaluation(item["agent"], item["prompt"], item["response"])
+# --- MAIN EXECUTION ---
+
+def main():
+    """
+    Main function to run the evaluation pipeline.
+    It reads data from a CSV, evaluates each item, and prints a final leaderboard.
+    """
+    agent_scores = {}
+
+    try:
+        print("Starting evaluation pipeline...")
+        with open('data.csv', mode='r', encoding='utf-8') as infile:
+            reader = csv.DictReader(infile)
+            for row in reader:
+                agent = row["agent"]
+                if agent not in agent_scores:
+                    agent_scores[agent] = {"Helpful": 0, "Unhelpful": 0, "Fail": 0, "Total": 0, "Errors": 0}
+
+                # Run evaluation and get scores for the current row
+                instruction_score, helpfulness_eval = run_and_print_evaluation(
+                    row["agent"], row["prompt"], row["response"]
+                )
+
+                # Update leaderboard scores
+                agent_scores[agent]["Total"] += 1
+                if instruction_score == "FAIL":
+                    agent_scores[agent]["Fail"] += 1
+                
+                score = helpfulness_eval.get('score')
+                if score == "Helpful":
+                    agent_scores[agent]["Helpful"] += 1
+                elif score == "Unhelpful":
+                    agent_scores[agent]["Unhelpful"] += 1
+                elif score == "AI Judge Error":
+                    agent_scores[agent]["Errors"] += 1
+
+        # --- PRINT THE FINAL LEADERBOARD ---
+        print("\n===================================")
+        print("    HACKATHON LEADERBOARD")
+        print("===================================\n")
+
+        sorted_agents = sorted(agent_scores.items(), key=lambda item: item[1]['Helpful'], reverse=True)
+
+        for agent, scores in sorted_agents:
+            print(f"--- Agent: {agent} ({scores['Total']} responses) ---")
+            print(f"  - Helpful Responses: {scores['Helpful']}")
+            print(f"  - Unhelpful Responses: {scores['Unhelpful']}")
+            print(f"  - Instruction Fails: {scores['Fail']}")
+            if scores['Errors'] > 0:
+                print(f"  - AI Judge Errors: {scores['Errors']}")
+            print()
+
+    except FileNotFoundError:
+        print("FATAL ERROR: data.csv not found. Please create it in the same folder as the script.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+
+if __name__ == "__main__":
+    main()
