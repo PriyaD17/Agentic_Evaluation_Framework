@@ -1,7 +1,8 @@
 import google.generativeai as genai
 import os
+from dotenv import load_dotenv
 
-
+load_dotenv()
 
 try:
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
@@ -10,6 +11,7 @@ except KeyError:
     print("Please set it to your Google AI API key.")
     exit()
 
+# AI model 
 ai_judge_model = genai.GenerativeModel('gemini-pro')
 
 
@@ -63,6 +65,7 @@ def run_evaluation(agent_name, prompt, response):
     print(f"- Accuracy: {accuracy_score}")
     print("-------------------------\n")
 
+#  Example evaluation data
 
 eval_data = [
     {
