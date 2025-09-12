@@ -12,7 +12,7 @@ except KeyError:
     exit()
 
 # AI model 
-ai_judge_model = genai.GenerativeModel('gemini-pro')
+ai_judge_model = genai.GenerativeModel('gemini-2.5-pro')
 
 
 def evaluate_instruction_following(prompt, response):
