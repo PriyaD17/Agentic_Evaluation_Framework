@@ -1,7 +1,7 @@
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
-
+import json
 load_dotenv()
 
 try:
@@ -27,43 +27,55 @@ def evaluate_instruction_following(prompt, response):
             return "FAIL" 
     return "Not Applicable"
 
-def evaluate_accuracy_with_ai(prompt, response):
+def evaluate_helpfulness_with_ai(prompt, response):
     """
-    Uses an AI model as a "judge" to check for factual accuracy.
+    Evaluates helpfulness and provides a justification for the score.
+    This targets the "Explainability" stretch goal.
     """
     judge_prompt = f"""
-    You are a fact-checking system. Based on the original question, is the following answer factually correct?
-    Respond with only the word 'Correct' or 'Incorrect'.
+    You are an AI quality evaluator. Your task is to assess if the agent's answer is helpful and relevant to the user's question, and provide a brief justification for your score.
+
+    First, evaluate the agent's answer based on these criteria:
+    - **Helpful**: The answer directly and usefully addresses the user's question.
+    - **Unhelpful**: The answer attempts to address the question but is factually wrong, incomplete, or of very poor quality.
+    - **Irrelevant**: The answer does not address the user's question at all.
+
+    Second, provide a one-sentence justification for your evaluation.
+
+    You must respond in a valid JSON format with two keys: "score" and "justification".
+    Example: {{"score": "Helpful", "justification": "The answer correctly identifies the boiling point of water."}}
 
     Original Question: "{prompt}"
-    Answer to Evaluate: "{response}"
+    Agent's Answer: "{response}"
     """
-
     try:
-        judge_response = ai_judge_model.generate_content(judge_prompt)
-
-        return judge_response.text.strip()
+        generation_config = genai.types.GenerationConfig(
+            temperature=0.0,
+            response_mime_type="application/json" # This forces the model to output JSON!
+        )
+        judge_response = ai_judge_model.generate_content(
+            judge_prompt,
+            generation_config=generation_config
+        )
+        return json.loads(judge_response.text)
     except Exception as e:
-        return f"Error during AI check: {e}"
-
+        # If something goes wrong, return a structured error
+        return {"score": "AI Judge Error", "justification": str(e)}
 
 def run_evaluation(agent_name, prompt, response):
-    """
-    Runs all evaluations for a given prompt and response.
-    """
+    """ Runs all evaluations and prints the score with justification. """
     print("--- Evaluation Report ---")
     print(f"Agent: '{agent_name}'")
     print(f"Prompt: '{prompt}'")
     print(f"Response: '{response}'\n")
 
-
     instruction_score = evaluate_instruction_following(prompt, response)
-    accuracy_score = evaluate_accuracy_with_ai(prompt, response)
-
+    helpfulness_eval = evaluate_helpfulness_with_ai(prompt, response) 
 
     print("Scores:")
     print(f"- Instruction Following: {instruction_score}")
-    print(f"- Accuracy: {accuracy_score}")
+    print(f"- Helpfulness: {helpfulness_eval['score']}")
+    print(f"  └─ Justification: {helpfulness_eval['justification']}") 
     print("-------------------------\n")
 
 #  Example evaluation data
