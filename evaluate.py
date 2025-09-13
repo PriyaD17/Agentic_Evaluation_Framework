@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 import json
 import csv
+import matplotlib.pyplot as plt 
 
 load_dotenv()
 
@@ -82,7 +83,35 @@ def run_and_print_evaluation(agent_name, prompt, response):
 
     return instruction_score, helpfulness_eval
 
+def create_leaderboard_chart(agent_scores, filename="leaderboard.png"):
+    """
+    Creates and saves a bar chart visualizing the agent scores.
+    """
+    sorted_agents = sorted(agent_scores.items(), key=lambda item: item[1]['Helpful'], reverse=True)
+    agent_names = [agent[0] for agent in sorted_agents]
+    helpful_scores = [agent[1]['Helpful'] for agent in sorted_agents]
+    unhelpful_scores = [agent[1]['Unhelpful'] for agent in sorted_agents]
+    fail_scores = [agent[1]['Fail'] for agent in sorted_agents]
 
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bar_width = 0.25
+    index = range(len(agent_names))
+
+
+    bar1 = ax.bar(index, helpful_scores, bar_width, label='Helpful', color='g')
+    bar2 = ax.bar([i + bar_width for i in index], unhelpful_scores, bar_width, label='Unhelpful', color='r')
+    bar3 = ax.bar([i + 2 * bar_width for i in index], fail_scores, bar_width, label='Instruction Fails', color='orange')
+
+    ax.set_xlabel('Agent Name', fontweight='bold')
+    ax.set_ylabel('Number of Responses', fontweight='bold')
+    ax.set_title('Agent Performance Leaderboard', fontweight='bold', fontsize=16)
+    ax.set_xticks([i + bar_width for i in index])
+    ax.set_xticklabels(agent_names)
+    ax.legend()
+
+    plt.tight_layout()
+    plt.savefig(filename)
+    print(f"\nLeaderboard chart saved to {filename}")
 
 def main():
     """
@@ -133,7 +162,7 @@ def main():
             if scores['Errors'] > 0:
                 print(f"  - AI Judge Errors: {scores['Errors']}")
             print()
-
+        create_leaderboard_chart(agent_scores)
     except FileNotFoundError:
         print("FATAL ERROR: data.csv not found. Please create it in the same folder as the script.")
     except Exception as e:
