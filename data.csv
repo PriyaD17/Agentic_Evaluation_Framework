@@ -5,3 +5,5 @@ WrongBot,"What is the capital of Australia?","The capital of Australia is Sydney
 SummarizeBot,"Summarize this text: The sun is a star. It is very big. Planets orbit the sun.","The provided text states that the sun is a large star orbited by planets."
 HelpfulBot,"What is 2+2?","The sum of 2 and 2 is 4."
 WrongBot,"What is 2+2?","The sum of 2 and 2 is 5."
+GoodReasoningBot,"I have 5 apples. I eat 2 of them. Then, I buy 3 more. How many apples do I have now?","You start with 5 apples, eating 2 leaves you with 3. Buying 3 more brings the total to 6 apples."
+BadReasoningBot,"I have 5 apples. I eat 2 of them. Then, I buy 3 more. How many apples do I have now?","You have 5 apples and buy 3, so you have 8 apples."
