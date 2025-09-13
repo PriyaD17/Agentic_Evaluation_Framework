@@ -32,7 +32,6 @@ def evaluate_instruction_following(prompt, response):
 def evaluate_helpfulness_with_ai(prompt, response):
     """
     Evaluates helpfulness and provides a justification for the score using the AI Judge.
-    This targets the "Explainability" stretch goal.
     """
     judge_prompt = f"""
     You are an AI quality evaluator. Your task is to assess if the agent's answer is helpful and relevant to the user's question, and provide a brief justification for your score.
