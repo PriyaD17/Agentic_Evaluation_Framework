@@ -31,4 +31,4 @@ Built a multi-dimensional evaluation pipeline that scores agents on two key axes
     ```
 
 ## Accomplishments & Issues Faced
-During this hackathon, we built the entire pipeline from scratch. A key challenge was evolving our evaluation metric from simple "accuracy" to "helpfulness" after discovering that powerful AI judges are very literal. By refining our prompts and our logic, we created a more robust and insightful system.
+During this hackathon, the entire pipeline was built from scratch. A key challenge was evolving our evaluation metric from simple "accuracy" to "helpfulness" after discovering that powerful AI judges are very literal. By refining our prompts and our logic, we created a more robust and insightful system.
