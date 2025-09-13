@@ -5,8 +5,8 @@ This project is a complete, end-to-end framework for evaluating the performance 
 ## The Problem
 Evaluating AI agents is challenging. A simple "right or wrong" score is not enough because an agent can be factually correct but fail to follow instructions, or it can be creative and helpful without being a textbook definition. We need a system that can capture this nuance automatically and at scale.
 
-## Our Solution
-We built a multi-dimensional evaluation pipeline that scores agents on two key axes:
+## The Solution
+Built a multi-dimensional evaluation pipeline that scores agents on two key axes:
 1.  **Rule-Based Instruction Following:** A precise, code-based check to see if the agent followed specific constraints (e.g., "respond in a single sentence").
 2.  **AI-Based Quality Scoring:** Using Gemini 1.5 Pro as an "AI Judge," the framework evaluates the **helpfulness** and **relevance** of the response from a user's perspective.
 
