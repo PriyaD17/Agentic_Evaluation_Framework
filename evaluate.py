@@ -5,6 +5,7 @@ import json
 import csv
 import matplotlib.pyplot as plt
 from serpapi import GoogleSearch
+import time
 
 load_dotenv()
 
@@ -17,6 +18,13 @@ except KeyError as e:
     exit()
 
 ai_judge_model = genai.GenerativeModel('gemini-1.5-pro-latest')
+def estimate_token_count(text: str) -> int:
+    """
+    A simple heuristic to estimate token count. A real implementation might use
+    a proper tokenizer library or get the count from the API response.
+    A common ratio is ~4 characters per token.
+    """
+    return round(len(text) / 4)
 
 def google_search(query: str) -> str:
     """
@@ -176,57 +184,82 @@ def conciseness_agent(prompt: str, response: str):
     except Exception as e:
         return {"score": "AI Judge Error", "justification": str(e)}
 
-def orchestrator(agent_name: str, prompt: str, response: str):
+def orchestrator(agent_name: str, prompt: str, response: str) -> dict:
     """
-    The orchestrator that runs all specialist agents and gathers their results.
+    The orchestrator now implements a Communication Protocol by creating and
+    populating a structured "Task State" object for each evaluation.
     """
     print(f"--- Evaluating Response from '{agent_name}' ---")
     print(f"Prompt: '{prompt}'")
     print(f"Response: '{response}'\n")
+    
+    start_time = time.time()
 
-    results = {
-        "Factual_Accuracy": fact_checker_agent(prompt, response),
-        "Logical_Reasoning": reasoning_agent(prompt, response),
-        "Instruction_Adherence": instruction_adherence_agent(prompt, response)
+    task_state = {
+        "inputs": {
+            "agent_name": agent_name,
+            "prompt": prompt,
+            "response": response
+        },
+        "metadata": {
+            "latency_seconds": 0,
+            "estimated_cost_tokens": 0
+        },
+        "results": {}
     }
-    return results
 
-def print_multi_agent_report(results: dict):
-    """Prints the final, synthesized report from all agents."""
+    task_state["results"]["Factual_Accuracy"] = fact_checker_agent(prompt, response)
+    task_state["results"]["Logical_Reasoning"] = reasoning_agent(prompt, response)
+    task_state["results"]["Instruction_Adherence"] = instruction_adherence_agent(prompt, response)
+    task_state["results"]["Conciseness"] = conciseness_agent(prompt, response) # New agent call
+
+    end_time = time.time()
+    task_state["metadata"]["latency_seconds"] = round(end_time - start_time, 2)
+    
+    # Estimate total tokens used for all agent prompts and the original response
+    total_text_for_cost = prompt + response + json.dumps(task_state["results"])
+    task_state["metadata"]["estimated_cost_tokens"] = estimate_token_count(total_text_for_cost)
+
+    return task_state
+
+def print_multi_agent_report(task_state: dict):
+    """Prints the final, synthesized report from the Task State."""
     print("Scores:")
-    for category, result in results.items():
+    for category, result in task_state["results"].items():
         score = result.get('score', 'N/A')
         justification = result.get('justification', 'N/A')
         print(f"- {category.replace('_', ' ')}: {score}")
         print(f"  └─ Justification: {justification}")
+    
+    print("\nPerformance Metrics:")
+    print(f"- Latency: {task_state['metadata']['latency_seconds']} seconds")
+    print(f"- Estimated Cost: {task_state['metadata']['estimated_cost_tokens']} tokens")
     print("-------------------------------------------\n")
 
 
 def create_leaderboard_chart(agent_scores, filename="leaderboard.png"):
-    """
-    Creates and saves a bar chart visualizing the agent scores.
-    """
+    """Creates and saves a bar chart visualizing the agent scores."""
     sorted_agents = sorted(agent_scores.items(), key=lambda item: item[1]['Factual_Correct'], reverse=True)
     agent_names = [agent[0] for agent in sorted_agents]
     
-
     factual_correct = [agent[1]['Factual_Correct'] for agent in sorted_agents]
     reasoning_sound = [agent[1]['Reasoning_Sound'] for agent in sorted_agents]
     instruction_pass = [agent[1]['Instruction_Pass'] for agent in sorted_agents]
-    
-    fig, ax = plt.subplots(figsize=(12, 7))
-    bar_width = 0.25
-    index = range(len(agent_names))
+    concise_scores = [agent[1]['Concise'] for agent in sorted_agents] 
 
+    fig, ax = plt.subplots(figsize=(12, 7))
+    bar_width = 0.2
+    index = range(len(agent_names))
 
     ax.bar(index, factual_correct, bar_width, label='Factual Correct', color='skyblue')
     ax.bar([i + bar_width for i in index], reasoning_sound, bar_width, label='Reasoning Sound', color='lightgreen')
     ax.bar([i + 2 * bar_width for i in index], instruction_pass, bar_width, label='Instruction Pass', color='salmon')
+    ax.bar([i + 3 * bar_width for i in index], concise_scores, bar_width, label='Concise', color='purple') 
 
     ax.set_xlabel('Agent Name', fontweight='bold')
     ax.set_ylabel('Number of Responses', fontweight='bold')
-    ax.set_title('Agent Performance Leaderboard', fontweight='bold', fontsize=16)
-    ax.set_xticks([i + bar_width for i in index])
+    ax.set_title('Multi-Agent Performance Leaderboard', fontweight='bold', fontsize=16)
+    ax.set_xticks([i + 1.5 * bar_width for i in index])
     ax.set_xticklabels(agent_names, rotation=15, ha="right")
     ax.legend()
     ax.grid(axis='y', linestyle='--', alpha=0.7)
@@ -238,13 +271,12 @@ def create_leaderboard_chart(agent_scores, filename="leaderboard.png"):
 
 
 def main():
-    """
-    Main function to run the multi-agent evaluation pipeline.
-    """
+    """Main function to run the multi-agent evaluation pipeline."""
     agent_scores = {}
+    performance_metrics = {"total_latency": 0, "total_cost": 0}
 
     try:
-        print("Starting Multi-Agent evaluation pipeline...")
+        print("Starting Multi-Agent evaluation pipeline with enhanced metrics...")
         with open('data.csv', mode='r', encoding='utf-8') as infile:
             reader = csv.DictReader(infile)
             for row in reader:
@@ -254,54 +286,50 @@ def main():
                         "Total": 0, "Errors": 0,
                         "Factual_Correct": 0, "Factual_Incorrect": 0,
                         "Reasoning_Sound": 0, "Reasoning_Flawed": 0,
-                        "Instruction_Pass": 0, "Instruction_Fail": 0
+                        "Instruction_Pass": 0, "Instruction_Fail": 0,
+                        "Concise": 0, "Verbose": 0 # New tracker
                     }
 
-                # The orchestrator runs the entire evaluation for one item
-                results = orchestrator(row["agent"], row["prompt"], row["response"])
-                
-                # Print the synthesized report for the user
-                print_multi_agent_report(results)
+                task_state = orchestrator(row["agent"], row["prompt"], row["response"])
+                print_multi_agent_report(task_state)
 
-                # Aggregate scores for the final leaderboard
                 agent_scores[agent]["Total"] += 1
+                performance_metrics["total_latency"] += task_state["metadata"]["latency_seconds"]
+                performance_metrics["total_cost"] += task_state["metadata"]["estimated_cost_tokens"]
+                
+                results = task_state["results"]
                 
                 # Accuracy Score
-                acc_score = results["Factual_Accuracy"].get('score')
-                if acc_score == "Correct":
-                    agent_scores[agent]["Factual_Correct"] += 1
-                elif acc_score == "Incorrect":
-                    agent_scores[agent]["Factual_Incorrect"] += 1
-                
+                if results["Factual_Accuracy"].get('score') == "Correct": agent_scores[agent]["Factual_Correct"] += 1
                 # Reasoning Score
-                reas_score = results["Logical_Reasoning"].get('score')
-                if reas_score == "Sound":
-                    agent_scores[agent]["Reasoning_Sound"] += 1
-                elif reas_score == "Flawed":
-                    agent_scores[agent]["Reasoning_Flawed"] += 1
-                
+                if results["Logical_Reasoning"].get('score') == "Sound": agent_scores[agent]["Reasoning_Sound"] += 1
                 # Instruction Score
-                inst_score = results["Instruction_Adherence"].get('score')
-                if inst_score == "Pass":
-                    agent_scores[agent]["Instruction_Pass"] += 1
-                elif inst_score == "Fail":
-                    agent_scores[agent]["Instruction_Fail"] += 1
+                if results["Instruction_Adherence"].get('score') == "Pass": agent_scores[agent]["Instruction_Pass"] += 1
+                # Conciseness Score
+                if results["Conciseness"].get('score') == "Concise": agent_scores[agent]["Concise"] += 1
 
-        #  Final Leaderboard 
+        # --- Final Leaderboard ---
         print("\n===================================")
-        print(" AI AGENTS LEADERBOARD (Multi-Agent)")
+        print(" AI AGENTS LEADERBOARD")
         print("===================================\n")
 
         sorted_agents = sorted(agent_scores.items(), key=lambda item: item[1]['Factual_Correct'], reverse=True)
 
         for agent, scores in sorted_agents:
             print(f"--- Agent: {agent} ({scores['Total']} responses) ---")
-            print(f"  - Factual Accuracy: {scores['Factual_Correct']} Correct, {scores['Factual_Incorrect']} Incorrect")
-            print(f"  - Logical Reasoning: {scores['Reasoning_Sound']} Sound, {scores['Reasoning_Flawed']} Flawed")
-            print(f"  - Instruction Following: {scores['Instruction_Pass']} Pass, {scores['Instruction_Fail']} Fail")
+            print(f"  - Factual Correct: {scores['Factual_Correct']}")
+            print(f"  - Reasoning Sound: {scores['Reasoning_Sound']}")
+            print(f"  - Instruction Pass: {scores['Instruction_Pass']}")
+            print(f"  - Concise: {scores['Concise']}")
             print()
             
         create_leaderboard_chart(agent_scores)
+
+        print("\n--- Overall Performance Summary ---")
+        print(f"Total evaluation time: {performance_metrics['total_latency']:.2f} seconds")
+        print(f"Total estimated cost: {performance_metrics['total_cost']} tokens")
+        print("-----------------------------------")
+
 
     except FileNotFoundError:
         print("FATAL ERROR: data.csv not found.")
