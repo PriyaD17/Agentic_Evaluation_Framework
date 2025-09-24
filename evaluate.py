@@ -152,6 +152,29 @@ def instruction_adherence_agent(prompt: str, response: str):
     except Exception as e:
         return {"score": "AI Judge Error", "justification": str(e)}
 
+def conciseness_agent(prompt: str, response: str):
+    """
+    **NEW AGENT**: An agent that evaluates the conciseness of a response.
+    """
+    print("└─ Running Conciseness Agent...")
+    judge_prompt = f"""
+    You are a Conciseness Evaluator. Your task is to determine if the agent's answer is brief and to the point, or if it is overly verbose.
+
+    - Evaluate the response as "Concise" if it answers the question without unnecessary words or information.
+    - Evaluate the response as "Verbose" if it contains filler or irrelevant details that make the answer longer than necessary.
+
+    You must respond in a valid JSON format with two keys: "score" and "justification".
+    Example: {{"score": "Verbose", "justification": "The agent gave a long history of water before stating its boiling point."}}
+
+    Original Question: "{prompt}"
+    Agent's Answer: "{response}"
+    """
+    try:
+        generation_config = genai.types.GenerationConfig(temperature=0.0, response_mime_type="application/json")
+        judge_response = ai_judge_model.generate_content(judge_prompt, generation_config=generation_config)
+        return json.loads(judge_response.text)
+    except Exception as e:
+        return {"score": "AI Judge Error", "justification": str(e)}
 
 def orchestrator(agent_name: str, prompt: str, response: str):
     """
