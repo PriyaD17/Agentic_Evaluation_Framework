@@ -202,7 +202,7 @@ def create_leaderboard_chart(agent_scores, filename="leaderboard.png"):
 
     ax.set_xlabel('Agent Name', fontweight='bold')
     ax.set_ylabel('Number of Responses', fontweight='bold')
-    ax.set_title('Multi-Agent Performance Leaderboard', fontweight='bold', fontsize=16)
+    ax.set_title('Agent Performance Leaderboard', fontweight='bold', fontsize=16)
     ax.set_xticks([i + bar_width for i in index])
     ax.set_xticklabels(agent_names, rotation=15, ha="right")
     ax.legend()
