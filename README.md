@@ -38,7 +38,7 @@ This framework decomposes the complex task of evaluation and assigns specific ro
 3.  **Set up your API Keys:**
     *   Create a `.env` file in the root directory.
     *   Add your Google AI API key: `GEMINI_API_KEY="YOUR_GEMINI_KEY_HERE"`
-    *   Add your SerpApi key (for Google Search): `SERPAPI_API_KEY="YOUR_SERPAPI_KEY_HERE"` (Get a free key from [serpapi.com](https://serpapi.com/))
+    *   Add your SerpApi key (for Google Search): `SERPAPI_API_KEY="YOUR_SERPAPI_KEY_HERE"` 
 4.  **Run the pipeline:**
     ```bash
     python evaluate.py
